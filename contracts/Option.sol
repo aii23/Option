@@ -1,7 +1,9 @@
-pragma solidity ^0.8.0; 
+pragma solidity ^0.8.1; 
 
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/SafeERC20.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+import "hardhat/console.sol";
 
 
 // interface IERC20 {
@@ -128,17 +130,17 @@ contract Option {
 	address owner;
 	address back;
 
-	uint256 optionPrice; // Price for 0.01 Ether 
-	uint256 price;
+	uint256 public optionPrice; // Price for 1 Ether 
+	uint256 public price; // Price of 1 Ether
 
-	uint256 totalSupply;
-	uint256 totalDept;
+	uint256 public totalSupply;
+	uint256 public totalDebt;
 
-	uint256 lastOptionId;
+	uint256 public lastOptionId;
 
-	address constant WETH_ADDRESS = 0x1;
-	address constant DAI_ADDRESS = 0x2; 
-	address constant UNISWAP_ROUTER = 0x3;
+	address constant WETH_ADDRESS = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+	address constant UNISWAP_ROUTER = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+	address constant TOKEN_ADDRESS = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
 
 	event AddLiquidity(uint256 amount);
 	event RemoveLiquidity(uint256 amount);
@@ -155,15 +157,14 @@ contract Option {
 		_;
 	}
 
-	constructor(address _back, address _tokenAddress) {
+	constructor(address _back) {
 		owner = msg.sender;
 		back = _back;
-		tokenAddress = _tokenAddress;
 	}	
 
 	function addLiquidity(uint256 amount) external onlyOwner {
 		// Transfer ERC20 DAI
-		IERC20(tokenAddress).safeTransferFrom(msg.sender, address(this), amount);
+		IERC20(TOKEN_ADDRESS).safeTransferFrom(msg.sender, address(this), amount);
 
 		// Increase total supply? (Can use balanceOf(address(this)). Can it be a problem?)
 		totalSupply += amount;
@@ -171,69 +172,84 @@ contract Option {
 	}
 
 	function removeLiquidity(uint256 amount) external onlyOwner {
-		// Check if total supply after removal is greater than totalDept
-		require(totalSupply - amount >= totalDept, "You should cover dept");
+		// Check if total supply after removal is greater than totalDebt
+		require(totalSupply - amount >= totalDebt, "You should cover debt");
 		// Transfer ERC20 DAI
-		IERC20(tokenAddress).safeTransferFrom(address(this), msg.sender, amount);
+		IERC20(TOKEN_ADDRESS).safeTransferFrom(address(this), msg.sender, amount);
 		// Decrease total supply(If it was increased in addLiquidity)
 		totalSupply -= amount;
 		emit RemoveLiquidity(amount);
 	}
 
 	// amount - amount of ethers
-	function buyEthPutOption(uint256 amount) external {
-		require(amount >= 10^16, "Not enought ether");
+	function buyEthPutOption(uint256 amount) external returns(uint256 optionId) {
+		require(amount >= 10^16, "You cannot buy option for less than 0.01 ether");
 		// Check if contract can produce such option
-		uint256 totalCost = amount * price; 
-		require(totalDept + totalCost <= totalSupply, "Can't produce such amount of options");
+		uint256 totalCost = amount * price / (10**18); // ?? 
+
+		require(totalCost > 0); 
+
+		require(totalDebt + totalCost <= totalSupply, "Can't produce such amount of options");
 		// Calculate option cost
-		uint256 totalOptionPrice = (amount * optionPrice) / 10^16; 
+		uint256 totalOptionPrice = (amount * optionPrice) / 10**18; 
+
+		require(totalOptionPrice > 0);
+
 		// Transfer option cost
-		IERC20(tokenAddress).safeTransferFrom(msg.sender, address(this), totalOptionProice); // Make safe transfer
+		IERC20(TOKEN_ADDRESS).safeTransferFrom(msg.sender, address(this), totalOptionPrice); // Make safe transfer
 		// Claim price
 		// Create option
+		optionId = lastOptionId;
 		options[lastOptionId].amount = amount;
 		options[lastOptionId].price = price;
 		options[lastOptionId].user = msg.sender;
-		options[lastOptionId].waitUntill = now + waitTime;
+		options[lastOptionId].waitUntill = block.timestamp + waitTime;
 		options[lastOptionId].open = true;
 		lastOptionId++;
 
-		// Increase total dept
-		totalDept += totalCost;
+		// Increase total debt
+		totalDebt += totalCost;
 	}
 
-	function releasePutOption(uint256 optionId) external  {
+	function releasePutOption(uint256 optionId) external payable {
 		// Some checks
 		require(options[optionId].user == msg.sender, "You can't release option you don't own");
-		require(now <= options[optionId].waitUntill && now + window >= options[optionId].waitUntill, "Option is not in oportunity window");
-		require(msg.value == options[optionId].amount);
+
+		require(block.timestamp >= options[optionId].waitUntill && block.timestamp <= options[optionId].waitUntill + window, "Option is not in oportunity window");
+		require(msg.value == options[optionId].amount, "Wrong ether value"); // Can change == to <= 
 		// Send value to user
-		uint256 dept = options[optionId].amount * options[optionId].price;
+		uint256 debt = options[optionId].amount * options[optionId].price / 10**18;
 		options[optionId].open = false;
-		IERC20(tokenAddress).safeTransfer(msg.sedner, dept);
-		totalDept -= dept;
+		IERC20(TOKEN_ADDRESS).safeTransfer(msg.sender, debt);
+		totalDebt -= debt;
 
 		// Exchange value on uniswap?? (to costly)
 		UniswapChangeEthForDAI();
 	}
+/*
+	function freePutOption(uint256 optionId) { // ToDo. Free liquidity from debt
 
+	}
+*/
 	function setPrice(uint256 newPrice) external onlyBack { 
 		// Just change price
 		price = newPrice;
 		emit PriceChange(newPrice);
 	}
 
-	function setOptionPrice(uint256 newOptionPrice) external onlyOnwer {
+	function setOptionPrice(uint256 newOptionPrice) external onlyOwner {
 		optionPrice = newOptionPrice;
 		emit OptionPriceChange(newOptionPrice);
 	}
 
-	function _ERC20SafeTransfer(addressaddress from, address to, uint256 amount) internal {
-		token.safeTransferFrom(msg.sender, address(this), sendAmount);
-	}
+	// function _ERC20SafeTransfer(address from, address to, uint256 amount) internal {
+	// 	token.safeTransferFrom(msg.sender, address(this), sendAmount);
+	// }
 
 	function UniswapChangeEthForDAI() internal {
-		IUniswapV2Router01(UNISWAP_ROUTER).swapExactETHForTokens(0, [WETH_ADDRESS, DAI_ADDRESS], address(this), now + 1 days); // Min Value?? Route?? Deadline?? 
+		address[] memory route = new address[](2);
+		route[0] = WETH_ADDRESS;
+		route[1] = TOKEN_ADDRESS;
+		IUniswapV2Router01(UNISWAP_ROUTER).swapExactETHForTokens{value: address(this).balance}(0, route, address(this), block.timestamp + 1 days); // Min Value?? Route?? Deadline?? 
 	}
 }
