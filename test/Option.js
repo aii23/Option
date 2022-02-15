@@ -51,24 +51,12 @@ describe("Option contract", () => {
 		[owner, addr1, addr2, back, ...addrs] = await ethers.getSigners();
 		firstAddresses = [owner, addr1, addr2, back];
 
-		// console.log(addr1.address);
-
-		// const addr1Balance = 1000000;
-
 		Option = await OptionContract.deploy(back.address);
 		DAI = await ethers.getContractAt("IERC20", DAI_ADDRESS);
 
 		firstAddresses.forEach(async (addr) => {
 			setDAIBalance(addr.address, initialDAIBalance);
 		});
-
-
-		// console.log(addr1.address);
-		// setDAIBalance(addr1.address, addr1Balance);
-
-		// console.log(await DAI.balanceOf(addr1.address));
-
-		// expect(await DAI.balanceOf(addr1.address)).to.equal(addr1Balance);
 	});
 
 	describe("Initial checks", () => {
@@ -152,11 +140,7 @@ describe("Option contract", () => {
 			let amount = BigNumber.from(10).pow(18); // 1 ether 
 
 			await DAI.connect(addr1).approve(Option.address, userPrice);
-
-			// console.log(amount);
-
 			await expect(Option.connect(addr1).buyEthPutOption(amount)).to.be.revertedWith(`VM Exception while processing transaction: reverted with reason string 'Dai/insufficient-allowance'`);
-
 		});
 
 		it(`Can't buy uncovered option`, async () => {
@@ -181,12 +165,10 @@ describe("Option contract", () => {
 		it(`Can't remove liquidity, so option become uncovered`, async () => {
 			let price = optionPrice;
 			let amount = tokenBase;
-
 			let prevLastOptionId = await Option.lastOptionId();
 
 			await DAI.connect(addr1).approve(Option.address, price);
 			await Option.connect(addr1).buyEthPutOption(amount);
-
 			await expect(Option.removeLiquidity(initialLiquidity)).to.be.revertedWith(`You should cover debt`);
 		});
 
@@ -268,6 +250,27 @@ describe("Option contract", () => {
 			let balanceAfterRelease = await DAI.balanceOf(addr1.address);
 
 			expect(balanceBeforeRelease.add(ethPrice)).to.equal(balanceAfterRelease);
+		});
+
+
+		it(`Can't release option twice`, async () => {
+			let price = optionPrice;
+			let amount = tokenBase; // 1 eth
+
+			let prevLastOptionId = await Option.lastOptionId();
+
+			await DAI.connect(addr1).approve(Option.address, price);
+			let txData = await Option.connect(addr1).buyEthPutOption(amount);
+			let optionId = txData.value;
+
+			let week = 60 * 60 * 24 * 7; 
+
+			await network.provider.send("evm_increaseTime", [week]);
+			await network.provider.send("evm_mine"); 
+
+			await Option.connect(addr1).releasePutOption(optionId, { value: amount });
+
+			await expect(Option.connect(addr1).releasePutOption(optionId, { value: amount })).to.be.revertedWith("Option is closed");
 		})
 	});
 });

@@ -5,18 +5,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "hardhat/console.sol";
 
-
-// interface IERC20 {
-//     function totalSupply() external view returns (uint);
-//     function balanceOf(address account) external view returns (uint);
-//     function transfer(address recipient, uint amount) external returns (bool);
-//     function allowance(address owner, address spender) external view returns (uint);
-//     function approve(address spender, uint amount) external returns (bool);
-//     function transferFrom(address sender, address recipient, uint amount) external returns (bool);
-//     event Transfer(address indexed from, address indexed to, uint value);
-//     event Approval(address indexed owner, address indexed spender, uint value);
-// }
-
 interface IUniswapV2Router01 {
     function factory() external pure returns (address);
     function WETH() external pure returns (address);
@@ -111,6 +99,7 @@ interface IUniswapV2Router01 {
     function getAmountsIn(uint amountOut, address[] calldata path) external view returns (uint[] memory amounts);
 }
 
+
 contract Option {
 	using SafeERC20 for IERC20;
 
@@ -162,6 +151,9 @@ contract Option {
 		back = _back;
 	}	
 
+
+	/// @dev Transfer DAI to contract
+	/// @param amount DAI amount to be transfered
 	function addLiquidity(uint256 amount) external onlyOwner {
 		// Transfer ERC20 DAI
 		IERC20(TOKEN_ADDRESS).safeTransferFrom(msg.sender, address(this), amount);
@@ -171,6 +163,8 @@ contract Option {
 		emit AddLiquidity(amount);
 	}
 
+	/// @dev Transfer DAI to owner if final liquidity cover issued options
+	/// @param amount DAI amount to be transfered
 	function removeLiquidity(uint256 amount) external onlyOwner {
 		// Check if total supply after removal is greater than totalDebt
 		require(totalSupply - amount >= totalDebt, "You should cover debt");
@@ -181,11 +175,13 @@ contract Option {
 		emit RemoveLiquidity(amount);
 	}
 
-	// amount - amount of ethers
+	/// @dev Issue option. Pay option price in DAI
+	/// @param amount Ether amount for which option will be issued
+	/// @return optionId Issued option id
 	function buyEthPutOption(uint256 amount) external returns(uint256 optionId) {
 		require(amount >= 10^16, "You cannot buy option for less than 0.01 ether");
 		// Check if contract can produce such option
-		uint256 totalCost = amount * price / (10**18); // ?? 
+		uint256 totalCost = amount * price / (10**18);
 
 		require(totalCost > 0); 
 
@@ -211,12 +207,15 @@ contract Option {
 		totalDebt += totalCost;
 	}
 
+	/// @dev Sell ether for price mentioned in option
+	/// @param optionId Id of the option, which will be used 
 	function releasePutOption(uint256 optionId) external payable {
 		// Some checks
 		require(options[optionId].user == msg.sender, "You can't release option you don't own");
 
 		require(block.timestamp >= options[optionId].waitUntill && block.timestamp <= options[optionId].waitUntill + window, "Option is not in oportunity window");
 		require(msg.value == options[optionId].amount, "Wrong ether value"); // Can change == to <= 
+		require(options[optionId].open, "Option is closed");
 		// Send value to user
 		uint256 debt = options[optionId].amount * options[optionId].price / 10**18;
 		options[optionId].open = false;
@@ -227,16 +226,20 @@ contract Option {
 		UniswapChangeEthForDAI();
 	}
 /*
-	function freePutOption(uint256 optionId) { // ToDo. Free liquidity from debt
+	function freePutOption(uint256 optionId) { // ToDo. Free liquidity from debt, if option is outdated
 
 	}
 */
+	/// @dev Set price of the ether(in DAI). Only back can call this function 
+	/// @param newPrice New price of ether
 	function setPrice(uint256 newPrice) external onlyBack { 
 		// Just change price
 		price = newPrice;
 		emit PriceChange(newPrice);
 	}
 
+	/// @dev Set price of option for 1 ether. If user whant to buy option for 2.3 ether, he will pay 2.3 * optionPrice DAI
+	/// @param newOptionPrice Price of option for 1 ether
 	function setOptionPrice(uint256 newOptionPrice) external onlyOwner {
 		optionPrice = newOptionPrice;
 		emit OptionPriceChange(newOptionPrice);
@@ -246,6 +249,7 @@ contract Option {
 	// 	token.safeTransferFrom(msg.sender, address(this), sendAmount);
 	// }
 
+	/// @dev Function for swap all ether contract have to DAI
 	function UniswapChangeEthForDAI() internal {
 		address[] memory route = new address[](2);
 		route[0] = WETH_ADDRESS;
