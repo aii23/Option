@@ -2,13 +2,11 @@ pragma solidity ^0.8.1;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "./Interfaces/IUniswapV2Router01.sol";
-
+import "./OptionAdministration.sol";
 import "hardhat/console.sol";
 
-
-contract Option is Ownable {
+contract Option is OptionAdministration {
     using SafeERC20 for IERC20;
 
     struct SingleOption {
@@ -24,11 +22,6 @@ contract Option is Ownable {
 
     mapping(uint256 => SingleOption) options;
 
-    address back;
-
-    uint256 public optionPrice; // Price for 1 Ether 
-    uint256 public price; // Price of 1 Ether
-
     uint256 public totalSupply;
     uint256 public totalDebt;
 
@@ -40,16 +33,8 @@ contract Option is Ownable {
 
     event AddLiquidity(uint256 amount);
     event RemoveLiquidity(uint256 amount);
-    event OptionPriceChange(uint256 newOptionPrice);
-    event PriceChange(uint256 newPrice);
 
-    modifier onlyBack() {
-        require(msg.sender == back, "Only back");
-        _;
-    }
-
-    constructor(address _back) {
-        back = _back;
+    constructor(address _back) OptionAdministration(_back) {
     }   
 
 
@@ -135,22 +120,6 @@ contract Option is Ownable {
 
     }
 */
-    /// @dev Set price of the ether(in DAI). Only back can call this function 
-    /// @param newPrice New price of ether
-    function setPrice(uint256 newPrice) external onlyBack { 
-        // Just change price
-        price = newPrice;
-        emit PriceChange(newPrice);
-    }
-
-    /// @dev 
-    ///     Set price of option for 1 ether. 
-    ///     If user whant to buy option for 2.3 ether, he will pay 2.3 * optionPrice DAI
-    /// @param newOptionPrice Price of option for 1 ether
-    function setOptionPrice(uint256 newOptionPrice) external onlyOwner {
-        optionPrice = newOptionPrice;
-        emit OptionPriceChange(newOptionPrice);
-    }
 
     // function _ERC20SafeTransfer(address from, address to, uint256 amount) internal {
     //  token.safeTransferFrom(msg.sender, address(this), sendAmount);
