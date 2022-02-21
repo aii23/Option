@@ -1,6 +1,8 @@
 require("@nomiclabs/hardhat-waffle");
+require("@nomiclabs/hardhat-solhint");
+require('solidity-coverage')
+require('dotenv').config();
 
-let infuraKey = "2ca...";
 
 /**
  * @type import('hardhat/config').HardhatUserConfig
@@ -10,8 +12,9 @@ module.exports = {
  	networks: {
   		hardhat: {
     		forking: {
-      			url: `https://mainnet.infura.io/v3/${ infuraKey }`,
+      			url: `https://mainnet.infura.io/v3/${ process.env.INFURA_KEY }`,
     		}
-  		}
+  		}, 
+
 	}
 };
