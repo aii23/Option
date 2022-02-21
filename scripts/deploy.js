@@ -11,9 +11,9 @@ async function main() {
 
   console.log("Option address:", Option.address);
 
-  console.log("Wait 1 minute before verification");
+  console.log("Wait 2 minute before verification");
 
-  await new Promise(r => setTimeout(r, 60000));
+  await new Promise(r => setTimeout(r, 120000));
 
   console.log("Verification started");
 
