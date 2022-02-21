@@ -1,6 +1,7 @@
 require("@nomiclabs/hardhat-waffle");
 require("@nomiclabs/hardhat-solhint");
-require('solidity-coverage')
+require('solidity-coverage');
+require('hardhat-docgen');
 require('dotenv').config();
 
 
