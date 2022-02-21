@@ -143,6 +143,16 @@ describe("Option contract", () => {
 			await expect(Option.connect(addr1).buyEthPutOption(amount)).to.be.revertedWith(`VM Exception while processing transaction: reverted with reason string 'Dai/insufficient-allowance'`);
 		});
 
+		it(`Can't buy option for less than 0.01 ether`, async () => {
+			let price = optionPrice;
+			let amount = tokenBase.div(100).sub(1);
+
+			let prevLastOptionId = await Option.lastOptionId();
+
+			await DAI.connect(addr1).approve(Option.address, price);
+			await expect(Option.connect(addr1).buyEthPutOption(amount)).to.be.revertedWith(`You cannot buy option for less than 0.01 ether`);
+		});
+
 		it(`Can't buy uncovered option`, async () => {
 			let amount = initialLiquidity.div(ethPrice).mul(tokenBase).add(1);
 

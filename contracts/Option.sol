@@ -179,7 +179,7 @@ contract Option {
     /// @param amount Ether amount for which option will be issued
     /// @return optionId Issued option id
     function buyEthPutOption(uint256 amount) external returns(uint256 optionId) {
-        require(amount >= 10^16, "You cannot buy option for less than 0.01 ether");
+        require(amount >= 10**16, "You cannot buy option for less than 0.01 ether");
         // Check if contract can produce such option
         uint256 totalCost = amount * price / (10**18);
 
