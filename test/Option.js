@@ -96,14 +96,14 @@ describe("Option contract", () => {
 			await DAI.approve(Option.address, DAIBalance);
 			await Option.addLiquidity(addedLiquidity);
 
-			await expect(Option.connect(addr1).addLiquidity(addedLiquidity)).to.be.revertedWith('Only owner');
-			await expect(Option.connect(addr1).removeLiquidity(removedLiquidity)).to.be.revertedWith('Only owner');
+			await expect(Option.connect(addr1).addLiquidity(addedLiquidity)).to.be.revertedWith('Ownable: caller is not the owner');
+			await expect(Option.connect(addr1).removeLiquidity(removedLiquidity)).to.be.revertedWith('Ownable: caller is not the owner');
 		});
 	});
 
 	describe("Price Change", () => {
 		it(`Non owner can't change option price`, async () => {
-			await expect(Option.connect(addr1).setOptionPrice(optionPrice)).to.be.revertedWith('Only owner');
+			await expect(Option.connect(addr1).setOptionPrice(optionPrice)).to.be.revertedWith('Ownable: caller is not the owner');
 		});
 
 		it(`Owner can change option price`, async () => {

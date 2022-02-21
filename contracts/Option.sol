@@ -2,12 +2,13 @@ pragma solidity ^0.8.1;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "./Interfaces/IUniswapV2Router01.sol";
 
 import "hardhat/console.sol";
 
 
-contract Option {
+contract Option is Ownable {
     using SafeERC20 for IERC20;
 
     struct SingleOption {
@@ -23,7 +24,6 @@ contract Option {
 
     mapping(uint256 => SingleOption) options;
 
-    address owner;
     address back;
 
     uint256 public optionPrice; // Price for 1 Ether 
@@ -43,18 +43,12 @@ contract Option {
     event OptionPriceChange(uint256 newOptionPrice);
     event PriceChange(uint256 newPrice);
 
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Only owner");
-        _;
-    }
-
     modifier onlyBack() {
         require(msg.sender == back, "Only back");
         _;
     }
 
     constructor(address _back) {
-        owner = msg.sender;
         back = _back;
     }   
 
