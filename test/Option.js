@@ -101,25 +101,25 @@ describe("Option contract", () => {
 		});
 	});
 
-	describe("Price Change", () => {
-		it(`Non owner can't change option price`, async () => {
-			await expect(Option.connect(addr1).setOptionPrice(optionPrice)).to.be.revertedWith('Ownable: caller is not the owner');
-		});
+	// describe("Price Change", () => {
+	// 	it(`Non owner can't change option price`, async () => {
+	// 		await expect(Option.connect(addr1).setOptionPrice(optionPrice)).to.be.revertedWith('Ownable: caller is not the owner');
+	// 	});
 
-		it(`Owner can change option price`, async () => {
-			await Option.setOptionPrice(optionPrice);
-			expect(await Option.optionPrice()).to.equal(optionPrice);
-		});
+	// 	it(`Owner can change option price`, async () => {
+	// 		await Option.setOptionPrice(optionPrice);
+	// 		expect(await Option.optionPrice()).to.equal(optionPrice);
+	// 	});
 
-		it(`Non back can't change ether price`, async () => {
-			await expect(Option.setPrice(ethPrice)).to.be.revertedWith('Only back');
-		});
+	// 	it(`Non back can't change ether price`, async () => {
+	// 		await expect(Option.setPrice(ethPrice)).to.be.revertedWith('Only back');
+	// 	});
 
-		it(`Back can change ether price`, async () => {
-			await Option.connect(back).setPrice(ethPrice);
-			expect(await Option.price()).to.equal(ethPrice);
-		});
-	});
+	// 	it(`Back can change ether price`, async () => {
+	// 		await Option.connect(back).setPrice(ethPrice);
+	// 		expect(await Option.price()).to.equal(ethPrice);
+	// 	});
+	// });
 
 	describe("Option tests", () => {
 		let initialLiquidity = tokenBase.mul(100000);
